@@ -11,6 +11,14 @@ class Market extends StatefulWidget {
 
 class _MarketState extends State<Market> {
   Future<List<Player>> players;
+  String searchTag = "";
+  var searchRoles = {
+    'top': true,
+    'jungler': true,
+    'mid': true,
+    'bot': true,
+    'support': true
+  };
   HttpService httpService = new HttpService();
 
   @override
@@ -26,28 +34,124 @@ class _MarketState extends State<Market> {
         elevation: 10,
         title: Text('Market'),
       ),
-      body: Center(
-        child: FutureBuilder<List<Player>>(
-          future: players,
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              return ListView.builder(
-                itemCount: snapshot.data.length,
-                itemBuilder: (context, index) {
-                  Player player = snapshot.data[index];
-                  return MarketCard(player: player);
+      body: Column(
+        children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              SizedBox(
+                width: 20,
+              ),
+              Icon(FontAwesomeIcons.search),
+              SizedBox(
+                width: 20,
+              ),
+              Expanded(
+                child: TextField(
+                  decoration: InputDecoration(
+                      border: InputBorder.none, hintText: 'Search by tag'),
+                  onChanged: (text) {
+                    setState(() {
+                      searchTag = text;
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: <Widget>[
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    searchRoles['top'] = !searchRoles['top'];
+                  });
                 },
-              );
-            } else if (snapshot.hasError) {
-              return Text("${snapshot.error}");
-            }
-            // By default, show a loading spinner.
-            return Center(
-                child: CircularProgressIndicator(
-                    valueColor:
-                        new AlwaysStoppedAnimation<Color>(Color(0xFFC8AA6D))));
-          },
-        ),
+                child: Image(
+                  image: AssetImage('assets/images/top.png'),
+                  color: searchRoles['top'] ? null : Colors.grey,
+                  height: 50,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    searchRoles['jungler'] = !searchRoles['jungler'];
+                  });
+                },
+                child: Image(
+                  image: AssetImage('assets/images/jungler.png'),
+                  color: searchRoles['jungler'] ? null : Colors.grey,
+                  height: 50,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    searchRoles['mid'] = !searchRoles['mid'];
+                  });
+                },
+                child: Image(
+                  image: AssetImage('assets/images/mid.png'),
+                  color: searchRoles['mid'] ? null : Colors.grey,
+                  height: 50,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    searchRoles['bot'] = !searchRoles['bot'];
+                  });
+                },
+                child: Image(
+                  image: AssetImage('assets/images/bot.png'),
+                  color: searchRoles['bot'] ? null : Colors.grey,
+                  height: 50,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    searchRoles['support'] = !searchRoles['support'];
+                  });
+                },
+                child: Image(
+                  image: AssetImage('assets/images/support.png'),
+                  color: searchRoles['support'] ? null : Colors.grey,
+                  height: 50,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 10,),
+          Expanded(
+            child: FutureBuilder<List<Player>>(
+              future: players,
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return ListView.builder(
+                    itemCount: snapshot.data.length,
+                    itemBuilder: (context, index) {
+                      Player player = snapshot.data[index];
+                      return player.tag.contains(searchTag) &&
+                              searchRoles[player.role]
+                          ? MarketCard(player: player)
+                          : new Container();
+                    },
+                  );
+                } else if (snapshot.hasError) {
+                  return Text("${snapshot.error}");
+                }
+                // By default, show a loading spinner.
+                return Center(
+                    child: CircularProgressIndicator(
+                        valueColor: new AlwaysStoppedAnimation<Color>(
+                            Color(0xFFC8AA6D))));
+              },
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[

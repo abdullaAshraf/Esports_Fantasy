@@ -4,6 +4,7 @@ import '../models/roster.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/api.dart';
 
 class Home extends StatefulWidget {
   @override
@@ -26,6 +27,7 @@ class _HomeState extends State<Home> {
   final _auth = FirebaseAuth.instance;
   final _firestore = Firestore.instance;
   FirebaseUser loggedInUser;
+  HttpService httpService = new HttpService();
 
   void loadRoster() async {
     final data = await _firestore
@@ -37,6 +39,14 @@ class _HomeState extends State<Home> {
     setState(() {
       roster = Roster.data(rosterRef);
     });
+    await roster.updatePoints();
+    setState(() {
+      roster = roster;
+    });
+  }
+
+  void updatePoints() async {
+
   }
 
   void getCurrentUser() async {

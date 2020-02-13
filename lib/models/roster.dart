@@ -46,6 +46,25 @@ class Roster {
       subs.add(httpService.getPlayer(player));
     }
   }
+
+  void updatePoints () async{
+    Player curTop = await top;
+    Player curJungler = await jungler;
+    Player curMid = await mid;
+    Player curBot = await bot;
+    Player curSupport = await support;
+    curTop.points = await httpService.getPlayerPoints(curTop, topAssigned);
+    curBot.points = await httpService.getPlayerPoints(curBot, botAssigned);
+    curMid.points = await httpService.getPlayerPoints(curMid, midAssigned);
+    curJungler.points = await httpService.getPlayerPoints(curJungler, junglerAssigned);
+    curSupport.points = await httpService.getPlayerPoints(curSupport, junglerAssigned);
+
+    top = Future.value(curTop);
+    jungler = Future.value(curJungler);
+    mid = Future.value(curMid);
+    bot = Future.value(curBot);
+    support = Future.value(curSupport);
+  }
 }
 
 final Map<String, dynamic> emptyRoster = {
