@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/player.dart';
 import '../services/api.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import './playerDetails.dart';
 
 class Market extends StatefulWidget {
   @override
@@ -124,7 +125,9 @@ class _MarketState extends State<Market> {
               ),
             ],
           ),
-          SizedBox(height: 10,),
+          SizedBox(
+            height: 10,
+          ),
           Expanded(
             child: FutureBuilder<List<Player>>(
               future: players,
@@ -198,10 +201,12 @@ class MarketCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () {
-        //TODO navigate to player details
-        Scaffold.of(context).showSnackBar(SnackBar(
-          content: Text("Player details for: " + player.tag),
-        ));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PlayerDetails(player: player),
+          ),
+        );
       },
       child: Container(
         margin: EdgeInsets.fromLTRB(15, 10, 15, 0),

@@ -5,6 +5,8 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/api.dart';
+import './playerDetails.dart';
+import './widgets/splitter.dart';
 
 class Home extends StatefulWidget {
   @override
@@ -45,9 +47,7 @@ class _HomeState extends State<Home> {
     });
   }
 
-  void updatePoints() async {
-
-  }
+  void updatePoints() async {}
 
   void getCurrentUser() async {
     try {
@@ -172,68 +172,42 @@ class RosterCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.fromLTRB(15, 10, 15, 0),
-      padding: EdgeInsets.fromLTRB(0, 0, 15, 0),
-      decoration: BoxDecoration(
-        color: colour,
-        borderRadius: BorderRadius.circular(10.0),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[
-          Image(
-            image: AssetImage('assets/images/' + player.role + '.png'),
-            height: 60,
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PlayerDetails(player: player),
           ),
-          Text(
-            player.tag,
-            style: TextStyle(fontSize: 32, color: Color(0xFFFFFFFF)),
-          ),
-          Text(
-            player.points.round().toString(),
-            style: TextStyle(fontSize: 40, color: Color(0xFF8E8E9B)),
-          )
-        ],
+        );
+      },
+      child: Container(
+        margin: EdgeInsets.fromLTRB(15, 10, 15, 0),
+        padding: EdgeInsets.fromLTRB(0, 0, 15, 0),
+        decoration: BoxDecoration(
+          color: colour,
+          borderRadius: BorderRadius.circular(10.0),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            Image(
+              image: AssetImage('assets/images/' + player.role + '.png'),
+              height: 60,
+            ),
+            Text(
+              player.tag,
+              style: TextStyle(fontSize: 32, color: Color(0xFFFFFFFF)),
+            ),
+            Text(
+              player.points.round().toString(),
+              style: TextStyle(fontSize: 40, color: Color(0xFF8E8E9B)),
+            )
+          ],
+        ),
       ),
     );
   }
 }
 
-class Splitter extends StatelessWidget {
-  Splitter({@required this.text});
 
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: <Widget>[
-        Expanded(
-          child: Column(
-            children: <Widget>[
-              Divider(
-                height: 2,
-                color: Color(0xFF8E8E9B),
-              ),
-            ],
-          ),
-        ),
-        Text(
-          '   ' + text + '   ',
-          style: TextStyle(fontSize: 18, color: Color(0xFF8E8E9B)),
-        ),
-        Expanded(
-          child: Column(
-            children: <Widget>[
-              Divider(
-                height: 2,
-                color: Color(0xFF8E8E9B),
-              ),
-            ],
-          ),
-        )
-      ],
-    );
-  }
-}
