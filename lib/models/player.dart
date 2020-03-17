@@ -31,4 +31,8 @@ class Player {
         tournament = json['Tournament'],
         points = 0,
         price = 0;
+
+  void updatePrice() async{
+    //TODO update price
+  }
 }

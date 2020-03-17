@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/player.dart';
 import '../models/roster.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/api.dart';
-import './playerDetails.dart';
-import './widgets/splitter.dart';
+import './player_details.dart';
+import '../widgets/splitter.dart';
+import '../widgets/bottom_navigattion.dart';
+import '../widgets/app_bar.dart';
+import '../models/user_data.dart';
 
 class Home extends StatefulWidget {
   @override
@@ -19,128 +21,62 @@ class _HomeState extends State<Home> {
       Player.card("Tarzan", 344.15, "jungler", "Griffin"),
       Player.card("Chovy", 332.50, "mid", "Griffin"),
       Player.card("Viper", 395.60, "bot", "Griffin"),
-      Player.card("Mata", 76.17, "support", "SKT1"), [
-    Player.card("Canyon", 351.55, "jungler", "DAMWON Gaming"),
-    Player.card("Faker", 314.01, "mid", "SKT1")
-  ]);
-
-  Roster roster = Roster();
+      Player.card("Mata", 76.17, "support", "SKT1"),
+      [Player.card("Canyon", 351.55, "jungler", "DAMWON Gaming"), Player.card("Faker", 314.01, "mid", "SKT1")]);
 
   final _auth = FirebaseAuth.instance;
-  final _firestore = Firestore.instance;
-  FirebaseUser loggedInUser;
   HttpService httpService = new HttpService();
 
-  void loadRoster() async {
-    final data = await _firestore
-        .collection("users")
-        .where('id', isEqualTo: loggedInUser.uid)
-        .getDocuments();
-    final DocumentSnapshot rosterRef =
-        await data.documents.first.data["roster"].get();
-    setState(() {
-      roster = Roster.data(rosterRef);
-    });
-    await roster.updatePoints();
-    setState(() {
-      roster = roster;
-    });
-  }
-
-  void updatePoints() async {}
-
-  void getCurrentUser() async {
+  void checkUser() async {
     try {
-      final user = await _auth.currentUser();
-      if (user != null) {
-        loggedInUser = user;
-        loadRoster();
-      }
+      await _auth.currentUser();
     } catch (e) {
       Navigator.pushNamedAndRemoveUntil(context, "/registration", (r) => false);
       print(e);
     }
   }
 
-  void getUserRoster() async {
-    _firestore.collection('users').add({});
-  }
-
   @override
   void initState() {
     super.initState();
-    getCurrentUser();
+    checkUser();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        elevation: 10,
-        title: Text('Your Roster'),
-        actions: <Widget>[
-          // action button
-          IconButton(
-            icon: Icon(FontAwesomeIcons.signOutAlt),
-            onPressed: () async {
-              await _auth.signOut();
-              Navigator.pushNamedAndRemoveUntil(
-                  context, "/registration", (r) => false);
-            },
-          ),
-        ],
+      appBar: MainAppBar(
+        title: "Your Roster",
       ),
-      body: Center(
-        child: Column(
-          children: <Widget>[
-            FutureRosterCard(player: roster.top),
-            FutureRosterCard(player: roster.jungler),
-            FutureRosterCard(player: roster.mid),
-            FutureRosterCard(player: roster.bot),
-            FutureRosterCard(player: roster.support),
-            SizedBox(
-              height: 20,
-            ),
-            Splitter(
-              text: "Substitutes",
-            ),
-            for (var player in roster.subs) FutureRosterCard(player: player),
-          ],
-        ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.store),
-            title: Text('  Market'),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.users),
-            title: Text('  Roster'),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.trophy),
-            title: Text('  Leaderboard'),
-          ),
-        ],
-        currentIndex: 1,
-        selectedItemColor: Color(0xFFC8AA6D),
-        backgroundColor: Color(0xFF1D1E33),
-        onTap: _onItemTapped,
+      body: Consumer<UserData>(builder: (context, data, child) {
+        return FutureBuilder<Roster>(
+          future: data.roster,
+          builder: (BuildContext context, AsyncSnapshot<Roster> snapshot) {
+            return Center(
+              child: Column(
+                children: <Widget>[
+                  FutureRosterCard(player: snapshot.hasData ? snapshot.data.top : null),
+                  FutureRosterCard(player: snapshot.hasData ? snapshot.data.jungler : null),
+                  FutureRosterCard(player: snapshot.hasData ? snapshot.data.mid : null),
+                  FutureRosterCard(player: snapshot.hasData ? snapshot.data.bot : null),
+                  FutureRosterCard(player: snapshot.hasData ? snapshot.data.support : null),
+                  SizedBox(
+                    height: 20,
+                  ),
+                  Splitter(
+                    text: "Substitutes",
+                  ),
+                  Column(children: (snapshot.hasData ? snapshot.data.subs : []).map((player) => FutureRosterCard(player: player)).toList())
+                ],
+              ),
+            );
+          },
+        );
+      }),
+      bottomNavigationBar: BottomNavigation(
+        currIndex: 1,
       ),
     );
-  }
-
-  void _onItemTapped(int index) {
-    setState(() {
-      switch (index) {
-        case 0:
-          Navigator.pushNamed(context, '/market');
-          break;
-        case 2:
-          Navigator.pushNamed(context, '/leaderboard');
-      }
-    });
   }
 }
 
@@ -155,9 +91,45 @@ class FutureRosterCard extends StatelessWidget {
       future: player,
       builder: (BuildContext context, AsyncSnapshot<Player> snapshot) {
         if (snapshot.hasData) {
-          return RosterCard(colour: Color(0xFF1D1E33), player: snapshot.data);
+          if (snapshot.data.tag == "") {
+            return FractionallySizedBox(
+              widthFactor: 1,
+              child: Container(
+                height: 60,
+                margin: EdgeInsets.fromLTRB(15, 10, 15, 0),
+                padding: EdgeInsets.fromLTRB(0, 0, 15, 0),
+                decoration: BoxDecoration(
+                  color: Color(0xFF1D1E25),
+                  borderRadius: BorderRadius.circular(10.0),
+                ),
+                child: Center(
+                  child: Text(
+                    "Empty",
+                    style: TextStyle(fontSize: 32, color: Color(0xFFFFFFFF)),
+                  ),
+                ),
+              ),
+            );
+          } else {
+            return RosterCard(colour: Color(0xFF1D1E33), player: snapshot.data);
+          }
         } else {
-          return CircularProgressIndicator();
+          return FractionallySizedBox(
+            widthFactor: 1,
+            child: Container(
+              height: 60,
+              margin: EdgeInsets.fromLTRB(15, 10, 15, 0),
+              padding: EdgeInsets.fromLTRB(0, 0, 15, 0),
+              decoration: BoxDecoration(
+                color: Color(0xFF1D1E33),
+                borderRadius: BorderRadius.circular(10.0),
+              ),
+              child: LinearProgressIndicator(
+                backgroundColor: Color(0xFF1D1E33),
+                valueColor: new AlwaysStoppedAnimation<Color>(Color(0xFFC8AA6D)),
+              ),
+            ),
+          );
         }
       },
     );
@@ -209,5 +181,3 @@ class RosterCard extends StatelessWidget {
     );
   }
 }
-
-

@@ -7,18 +7,13 @@ HttpService httpService = HttpService();
 
 class Roster {
   Future<Player> top, jungler, mid, bot, support;
-  Timestamp topAssigned,
-      junglerAssigned,
-      midAssigned,
-      botAssigned,
-      supportAssigned;
+  Timestamp topAssigned, junglerAssigned, midAssigned, botAssigned, supportAssigned;
 
   List<Future<Player>> subs = [];
 
   Roster();
 
-  Roster.full(Player top, Player jungler, Player mid, Player bot,
-      Player support, List<Player> subs)
+  Roster.full(Player top, Player jungler, Player mid, Player bot, Player support, List<Player> subs)
       : top = Future<Player>.value(top),
         jungler = Future<Player>.value(jungler),
         mid = Future<Player>.value(mid),
@@ -47,17 +42,17 @@ class Roster {
     }
   }
 
-  void updatePoints () async{
+  void updatePoints() async {
     Player curTop = await top;
     Player curJungler = await jungler;
     Player curMid = await mid;
     Player curBot = await bot;
     Player curSupport = await support;
-    curTop.points = await httpService.getPlayerPoints(curTop, topAssigned);
-    curBot.points = await httpService.getPlayerPoints(curBot, botAssigned);
-    curMid.points = await httpService.getPlayerPoints(curMid, midAssigned);
-    curJungler.points = await httpService.getPlayerPoints(curJungler, junglerAssigned);
-    curSupport.points = await httpService.getPlayerPoints(curSupport, junglerAssigned);
+    if (curTop.tag != "") curTop.points = await httpService.getPlayerPoints(curTop, topAssigned);
+    if (curJungler.tag != "") curJungler.points = await httpService.getPlayerPoints(curJungler, junglerAssigned);
+    if (curMid.tag != "") curMid.points = await httpService.getPlayerPoints(curMid, midAssigned);
+    if (curBot.tag != "") curBot.points = await httpService.getPlayerPoints(curBot, botAssigned);
+    if (curSupport.tag != "") curSupport.points = await httpService.getPlayerPoints(curSupport, junglerAssigned);
 
     top = Future.value(curTop);
     jungler = Future.value(curJungler);

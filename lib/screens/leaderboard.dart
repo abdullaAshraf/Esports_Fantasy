@@ -1,7 +1,8 @@
+import 'package:esports_fantasy/widgets/app_bar.dart';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../widgets/bottom_navigattion.dart';
 
 class Leaderboard extends StatefulWidget {
   @override
@@ -34,20 +35,8 @@ class _LeaderboardState extends State<Leaderboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        elevation: 10,
-        title: Text('Leaderboard'),
-        actions: <Widget>[
-          // action button
-          IconButton(
-            icon: Icon(FontAwesomeIcons.signOutAlt),
-            onPressed: () async {
-              await _auth.signOut();
-              Navigator.pushNamedAndRemoveUntil(
-                  context, "/registration", (r) => false);
-            },
-          ),
-        ],
+      appBar: MainAppBar(
+        title: "Leaderboard",
       ),
       body: Center(
         child: StreamBuilder<QuerySnapshot>(
@@ -69,7 +58,7 @@ class _LeaderboardState extends State<Leaderboard> {
               final username = user.data['username'];
               final points = user.data['points'];
               Color colour = Color(0xFF1D1E33);
-              if(loggedInUser != null && loggedInUser.uid == user.data['id'])
+              if (loggedInUser != null && loggedInUser.uid == user.data['id'])
                 colour = Color(0xFF5D4721);
               final userCard = UserCard(
                   colour: colour,
@@ -85,39 +74,10 @@ class _LeaderboardState extends State<Leaderboard> {
           },
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.store),
-            title: Text('  Market'),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.users),
-            title: Text('  Roster'),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.trophy),
-            title: Text('  Leaderboard'),
-          ),
-        ],
-        currentIndex: 2,
-        selectedItemColor: Color(0xFFC8AA6D),
-        backgroundColor: Color(0xFF1D1E33),
-        onTap: _onItemTapped,
+      bottomNavigationBar: BottomNavigation(
+        currIndex: 2,
       ),
     );
-  }
-
-  void _onItemTapped(int index) {
-    setState(() {
-      switch (index) {
-        case 0:
-          Navigator.pushNamed(context, '/market');
-          break;
-        case 1:
-          Navigator.pushNamed(context, '/');
-      }
-    });
   }
 }
 

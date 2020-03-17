@@ -11,6 +11,9 @@ class HttpService {
   DateTime _lastFetchTime;
   List<Player> _allRecords;
 
+  static const int UnassignableAfterGames = 3;
+  static const int UnassignableAfterDays = 30;
+
   HttpService() {
     _cacheValidDuration = Duration(minutes: 30);
     _lastFetchTime = DateTime.fromMillisecondsSinceEpoch(0);
@@ -48,6 +51,7 @@ class HttpService {
         return player;
       }
     }
+    return Future.value(Player.card("", 0.0, "", ""));
   }
 
   Future<List<Player>> getPlayersAPI() async {
@@ -58,8 +62,7 @@ class HttpService {
     //print("STATUS_CODE=" + statusCode.toString());
     if (response.statusCode == 200) {
       List<dynamic> players = jsonDecode(response.body);
-      List<Player> playersMapped =
-          players.map((data) => Player.fromJson(data)).toList();
+      List<Player> playersMapped = players.map((data) => Player.fromJson(data)).toList();
       return playersMapped;
     } else {
       throw Exception('Failed to load players');
@@ -71,58 +74,69 @@ class HttpService {
     double gamePoints = 0;
     int gameCount = 0;
     for (var game in games) {
-      if (gameCount + 1 == game.roundNumber) gameCount++;
-      else{
-        totalPoints += gamePoints/gameCount;
+      if (gameCount + 1 == game.roundNumber)
+        gameCount++;
+      else {
+        totalPoints += gamePoints / gameCount;
         gameCount = 1;
         gamePoints = 0;
       }
 
-      gamePoints += 2*game.kills;
-      gamePoints -= 0.5*game.deaths;
-      gamePoints += 1.5*game.assists;
-      gamePoints += 0.01*game.cs;
+      gamePoints += 2 * game.kills;
+      gamePoints -= 0.5 * game.deaths;
+      gamePoints += 1.5 * game.assists;
+      gamePoints += 0.01 * game.cs;
 
-      if(game.kills + game.assists >= 10)
-        gamePoints += 2;
-      if(game.win)
-        gamePoints += 5;
-      totalPoints += gamePoints/gameCount;
+      if (game.kills + game.assists >= 10) gamePoints += 2;
+      if (game.win) gamePoints += 5;
+      totalPoints += gamePoints / gameCount;
     }
     return totalPoints;
   }
 
   Future<double> getPlayerPoints(Player player, Timestamp date) async {
-    List<Game> games = await getGamesAPI(player.tournament,player.tag,date);
+    List<Game> games = await getGamesAPI(player.tournament, player.tag, date);
     double points = calculatePlayerPoints(games);
     return points;
   }
 
   Future<double> getPlayerSeasonPoints(Player player) async {
     var date = Timestamp.fromMillisecondsSinceEpoch(0);
-    List<Game> games = await getGamesAPI(player.tournament,player.tag,date);
+    List<Game> games = await getGamesAPI(player.tournament, player.tag, date);
     double points = calculatePlayerPoints(games);
     return points;
   }
 
+  Future<bool> unassignable(String tournament, String team, Timestamp date) async {
+    var since = date.toDate().toUtc();
+    var now = new DateTime.now().toUtc();
+    var daysSinceAssign = now.difference(since).inDays;
+    if (daysSinceAssign >= UnassignableAfterDays) return true;
+    var gamesSinceAssign = await getTeamMatchCountAPI(tournament, team, date);
+    if (gamesSinceAssign >= UnassignableAfterGames) return true;
+    return false;
+  }
 
-  Future<List<Game>> getGamesAPI(
-      String tournament, String player, Timestamp date) async {
-    String url = baseUrl +
-        '/Performance/' +
-        tournament +
-        '/' +
-        player +
-        '/' +
-        date.toDate().toUtc().toString();
+  Future<int> getTeamMatchCountAPI(String tournament, String team, Timestamp date) async {
+    String url = baseUrl + '/TeamGames/' + tournament + '/' + team + '/' + date.toDate().toUtc().toString();
+    Map<String, String> headers = {"Content-type": "application/json"};
+    Response response = await get(url, headers: headers);
+    if (response.statusCode == 200) {
+      return int.parse(response.body);
+    } else {
+      throw Exception('Failed to load games');
+    }
+  }
+
+  Future<List<Game>> getGamesAPI(String tournament, String player, Timestamp date) async {
+    String url = baseUrl + '/Performance/' + tournament + '/' + player + '/' + date.toDate().toUtc().toString();
     Map<String, String> headers = {"Content-type": "application/json"};
     Response response = await get(url, headers: headers);
     //int statusCode = response.statusCode;
     //print("STATUS_CODE=" + statusCode.toString());
     if (response.statusCode == 200) {
       List<dynamic> games = jsonDecode(response.body);
-      List<Game> gamesMapped =
-          games.map((data) => Game.fromJson(data)).toList();
+      List<Game> gamesMapped = games.map((data) => Game.fromJson(data)).toList();
       //plantsMapped.sort((a, b) => a.match.compareTo(b.match))
       return gamesMapped;
     } else {

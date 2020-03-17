@@ -1,9 +1,11 @@
+import 'package:esports_fantasy/widgets/app_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../models/player.dart';
 import '../services/api.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import './playerDetails.dart';
+import './player_details.dart';
+import '../widgets/bottom_navigattion.dart';
 
 class Market extends StatefulWidget {
   @override
@@ -31,9 +33,8 @@ class _MarketState extends State<Market> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        elevation: 10,
-        title: Text('Market'),
+      appBar: MainAppBar(
+        title: "Market",
       ),
       body: Column(
         children: <Widget>[
@@ -63,65 +64,30 @@ class _MarketState extends State<Market> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: <Widget>[
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    searchRoles['top'] = !searchRoles['top'];
-                  });
-                },
-                child: Image(
-                  image: AssetImage('assets/images/top.png'),
-                  color: searchRoles['top'] ? null : Colors.grey,
-                  height: 50,
-                ),
+              RoleFilter(
+                active: searchRoles['top'],
+                role: 'top',
+                onClick: onFilterClick,
               ),
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    searchRoles['jungler'] = !searchRoles['jungler'];
-                  });
-                },
-                child: Image(
-                  image: AssetImage('assets/images/jungler.png'),
-                  color: searchRoles['jungler'] ? null : Colors.grey,
-                  height: 50,
-                ),
+              RoleFilter(
+                active: searchRoles['jungler'],
+                role: 'jungler',
+                onClick: onFilterClick,
               ),
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    searchRoles['mid'] = !searchRoles['mid'];
-                  });
-                },
-                child: Image(
-                  image: AssetImage('assets/images/mid.png'),
-                  color: searchRoles['mid'] ? null : Colors.grey,
-                  height: 50,
-                ),
+              RoleFilter(
+                active: searchRoles['mid'],
+                role: 'mid',
+                onClick: onFilterClick,
               ),
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    searchRoles['bot'] = !searchRoles['bot'];
-                  });
-                },
-                child: Image(
-                  image: AssetImage('assets/images/bot.png'),
-                  color: searchRoles['bot'] ? null : Colors.grey,
-                  height: 50,
-                ),
+              RoleFilter(
+                active: searchRoles['bot'],
+                role: 'bot',
+                onClick: onFilterClick,
               ),
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    searchRoles['support'] = !searchRoles['support'];
-                  });
-                },
-                child: Image(
-                  image: AssetImage('assets/images/support.png'),
-                  color: searchRoles['support'] ? null : Colors.grey,
-                  height: 50,
-                ),
+              RoleFilter(
+                active: searchRoles['support'],
+                role: 'support',
+                onClick: onFilterClick,
               ),
             ],
           ),
@@ -137,7 +103,7 @@ class _MarketState extends State<Market> {
                     itemCount: snapshot.data.length,
                     itemBuilder: (context, index) {
                       Player player = snapshot.data[index];
-                      return player.tag.contains(searchTag) &&
+                      return player.tag.toLowerCase().contains(searchTag.toLowerCase()) &&
                               searchRoles[player.role]
                           ? MarketCard(player: player)
                           : new Container();
@@ -148,47 +114,47 @@ class _MarketState extends State<Market> {
                 }
                 // By default, show a loading spinner.
                 return Center(
-                    child: CircularProgressIndicator(
-                        valueColor: new AlwaysStoppedAnimation<Color>(
-                            Color(0xFFC8AA6D))));
+                  child: CircularProgressIndicator(
+                    valueColor:
+                        new AlwaysStoppedAnimation<Color>(Color(0xFFC8AA6D)),
+                  ),
+                );
               },
             ),
           ),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.store),
-            title: Text('  Market'),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.users),
-            title: Text('  Roster'),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.trophy),
-            title: Text('  Leaderboard'),
-          ),
-        ],
-        currentIndex: 0,
-        selectedItemColor: Color(0xFFC8AA6D),
-        backgroundColor: Color(0xFF1D1E33),
-        onTap: _onItemTapped,
+      bottomNavigationBar: BottomNavigation(
+        currIndex: 0,
       ),
     );
   }
 
-  void _onItemTapped(int index) {
+  onFilterClick(String role) {
     setState(() {
-      switch (index) {
-        case 1:
-          Navigator.pushNamed(context, '/');
-          break;
-        case 2:
-          Navigator.pushNamed(context, '/leaderboard');
-      }
+      searchRoles[role] = !searchRoles[role];
     });
+  }
+}
+
+class RoleFilter extends StatelessWidget {
+  RoleFilter(
+      {@required this.active, @required this.role, @required this.onClick});
+
+  final bool active;
+  final String role;
+  final Function(String) onClick;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => onClick(role),
+      child: Image(
+        image: AssetImage('assets/images/' + role + '.png'),
+        color: active ? null : Colors.grey,
+        height: 50,
+      ),
+    );
   }
 }
 
@@ -227,18 +193,25 @@ class MarketCard extends StatelessWidget {
                 SizedBox(
                   width: 10,
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      player.tag,
-                      style: TextStyle(fontSize: 32, color: Color(0xFFFFFFFF)),
-                    ),
-                    Text(
-                      player.name,
-                      style: TextStyle(fontSize: 16, color: Color(0xFF8E8E9B)),
-                    ),
-                  ],
+                Container(
+                  width: 260,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        player.tag,
+                        style:
+                            TextStyle(fontSize: 32, color: Color(0xFFFFFFFF)),
+                      ),
+                      Text(
+                        player.team,
+                        style:
+                            TextStyle(fontSize: 16, color: Color(0xFF8E8E9B)),
+                        softWrap: false,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

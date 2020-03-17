@@ -1,11 +1,11 @@
-import './roster.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class User {
   String username;
   String id;
   int balance;
   double points;
-  String roster;
+  DocumentReference roster;
 
   User();
 
@@ -13,6 +13,6 @@ class User {
       : username = json['username'],
         id = json['id'],
         balance = json['balance'],
-        points = json['points'],
+        points = json['points'].toDouble(),
         roster = json['roster'];
 }
