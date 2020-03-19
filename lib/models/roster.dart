@@ -6,72 +6,68 @@ import '../services/api.dart';
 HttpService httpService = HttpService();
 
 class Roster {
-  Future<Player> top, jungler, mid, bot, support;
-  Timestamp topAssigned, junglerAssigned, midAssigned, botAssigned, supportAssigned;
-
+  static const roles = ['top', 'jungler', 'mid', 'bot', 'support'];
+  Map<String, RosterPlayer> players = new Map();
   List<Future<Player>> subs = [];
 
   Roster();
 
-  Roster.full(Player top, Player jungler, Player mid, Player bot, Player support, List<Player> subs)
-      : top = Future<Player>.value(top),
-        jungler = Future<Player>.value(jungler),
-        mid = Future<Player>.value(mid),
-        bot = Future<Player>.value(bot),
-        support = Future<Player>.value(support) {
-    this.subs = [];
-    for (var player in subs) {
-      this.subs.add(Future<Player>.value(player));
+  Roster.data(DocumentSnapshot doc) {
+    var data = doc.data;
+    for (var role in roles) {
+      if (data.containsKey(role)) {
+        players[role] = RosterPlayer.data(new Map<String, dynamic>.from(data[role]));
+      }
+      else
+        players[role] = RosterPlayer();
     }
-  }
-
-  Roster.data(DocumentSnapshot data)
-      : topAssigned = data['topAssigned'],
-        botAssigned = data['botAssigned'],
-        midAssigned = data['midAssigned'],
-        junglerAssigned = data['junglerAssigned'],
-        supportAssigned = data['supportAssigned'] {
-    top = httpService.getPlayer(data['top']);
-    mid = httpService.getPlayer(data['mid']);
-    jungler = httpService.getPlayer(data['jungler']);
-    bot = httpService.getPlayer(data['bot']);
-    support = httpService.getPlayer(data['support']);
     subs = [];
-    for (var player in data['subs']) {
-      subs.add(httpService.getPlayer(player));
+    if (data.containsKey('subs')) {
+      for (var player in data['subs']) {
+        subs.add(httpService.getPlayer(player));
+      }
     }
   }
 
-  void updatePoints() async {
-    Player curTop = await top;
-    Player curJungler = await jungler;
-    Player curMid = await mid;
-    Player curBot = await bot;
-    Player curSupport = await support;
-    if (curTop.tag != "") curTop.points = await httpService.getPlayerPoints(curTop, topAssigned);
-    if (curJungler.tag != "") curJungler.points = await httpService.getPlayerPoints(curJungler, junglerAssigned);
-    if (curMid.tag != "") curMid.points = await httpService.getPlayerPoints(curMid, midAssigned);
-    if (curBot.tag != "") curBot.points = await httpService.getPlayerPoints(curBot, botAssigned);
-    if (curSupport.tag != "") curSupport.points = await httpService.getPlayerPoints(curSupport, junglerAssigned);
+  Roster.empty() {
+    for (var role in roles) players[role] = RosterPlayer();
+    subs = [];
+  }
 
-    top = Future.value(curTop);
-    jungler = Future.value(curJungler);
-    mid = Future.value(curMid);
-    bot = Future.value(curBot);
-    support = Future.value(curSupport);
+  Future<Map<String, dynamic>> getData() async {
+    Map<String, dynamic> values = new Map();
+    for (var role in roles) values[role] = await players[role].getData();
+    var subsID = [];
+    for (var player in subs) {
+      subsID.add((await player).id);
+    }
+    values['subs'] = subsID;
+    return values;
   }
 }
 
-final Map<String, dynamic> emptyRoster = {
-  'bot': "",
-  'botAssigned': Timestamp.now(),
-  'jungler': "",
-  'junglerAssigned': Timestamp.now(),
-  'mid': "",
-  'midAssigned': Timestamp.now(),
-  'top': "",
-  'topAssigned': Timestamp.now(),
-  'support': "",
-  'supportAssigned': Timestamp.now(),
-  'subs': List<String>()
-};
+class RosterPlayer {
+  Future<Player> player;
+  Timestamp assigned;
+  double pointsGained;
+
+  RosterPlayer() {
+    clear();
+  }
+
+  RosterPlayer.data(Map<String, dynamic> data){
+    player = httpService.getPlayer(data['id']);
+    assigned = data['assigned'];
+    pointsGained =  data['points'].toDouble();
+  }
+
+  void clear() {
+    player = Future.value(Player.empty());
+    assigned = Timestamp.now();
+    pointsGained = 0.0;
+  }
+
+  Future<Map<String, dynamic>> getData() async {
+    return {'id': (await player).id, 'assigned': assigned, 'points': pointsGained};
+  }
+}

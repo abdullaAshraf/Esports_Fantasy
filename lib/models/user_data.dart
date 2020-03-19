@@ -12,6 +12,8 @@ class UserData extends ChangeNotifier {
   final _auth = FirebaseAuth.instance;
   final _firestore = Firestore.instance;
 
+  static const roles = ['top', 'jungler', 'mid', 'bot', 'support'];
+
   Future<FirebaseUser> get loggedInUser async {
     try {
       final user = await _auth.currentUser();
@@ -26,8 +28,46 @@ class UserData extends ChangeNotifier {
   }
 
   void updateRosterPoints() async {
-    await (await roster).updatePoints();
+    var r = await roster;
+    try {
+      List responses = await Future.wait([
+        updatePlayerPoints(r.players['top']),
+        updatePlayerPoints(r.players['jungler']),
+        updatePlayerPoints(r.players['mid']),
+        updatePlayerPoints(r.players['bot']),
+        updatePlayerPoints(r.players['support'])
+      ]);
+      double sum = 0;
+      responses.forEach((v) => sum += v);
+
+      if (sum > 0) {
+        final userRef =
+            (await _firestore.collection("users").where('id', isEqualTo: (await loggedInUser).uid).getDocuments()).documents.first.reference;
+        userRef.updateData({'points': (await user).points + sum});
+
+        (await user).roster.updateData(await r.getData());
+        (await user).points += sum;
+      }
+    } catch (e) {
+      print(e);
+    }
     notifyListeners();
+  }
+
+  Future<double> updatePlayerPoints(RosterPlayer rosterPlayer) async {
+    Player p = await rosterPlayer.player;
+
+    if (p.id == "none") return 0;
+
+    //check for server updates
+    double assignedPoints = await httpService.getPlayerPoints(p, rosterPlayer.assigned);
+    int gamesCount = await httpService.getTeamMatchCountAPI(p.tournament, p.team, rosterPlayer.assigned);
+    p.points = assignedPoints / (gamesCount == 0 ? 1 : gamesCount);
+    rosterPlayer.player = Future.value(p);
+
+    double diff = assignedPoints - rosterPlayer.pointsGained;
+    rosterPlayer.pointsGained = assignedPoints;
+    return diff;
   }
 
   Future<Roster> get roster async {
@@ -51,27 +91,33 @@ class UserData extends ChangeNotifier {
     notifyListeners();
   }
 
-  void unassignPlayer(String role, String benchedPlayerTag) async {
+  void unassignPlayer(String role, String benchedPlayerId) async {
     List<String> subs = [];
-    for (var sub in (await roster).subs) {
-      String tag = (await sub).tag;
-      subs.add(tag);
+    var r = (await roster);
+    for (var sub in r.subs) {
+      String id = (await sub).id;
+      subs.add(id);
     }
-    if (benchedPlayerTag != "") subs.add(benchedPlayerTag);
+    if (benchedPlayerId != "none") subs.add(benchedPlayerId);
 
-    (await user).roster.updateData({role: "", "subs": subs});
+    r.players['role'].clear();
+    (await user).roster.updateData({role: await r.players[role].getData(), "subs": subs});
     forceRosterUpdate();
   }
 
-  void assignPlayer(Player player, String benchedPlayerTag) async {
+  void assignPlayer(Player player, String benchedPlayerId) async {
     List<String> subs = [];
-    for (var sub in (await roster).subs) {
-      String tag = (await sub).tag;
-      if (tag != player.tag) subs.add(tag);
+    var r = (await roster);
+    for (var sub in r.subs) {
+      String id = (await sub).id;
+      if (id != player.id) subs.add(id);
     }
-    if (benchedPlayerTag != "") subs.add(benchedPlayerTag);
+    if (benchedPlayerId != "none") subs.add(benchedPlayerId);
 
-    (await user).roster.updateData({player.role: player.tag, player.role + "Assigned": Timestamp.now(), "subs": subs});
+    r.players[player.role].player = Future.value(player);
+    r.players[player.role].assigned = Timestamp.now();
+    r.players[player.role].pointsGained = 0.0;
+    (await user).roster.updateData({player.role: await r.players[player.role].getData(), "subs": subs});
     forceRosterUpdate();
   }
 
@@ -81,13 +127,13 @@ class UserData extends ChangeNotifier {
     userRef.updateData({'balance': (await user).balance + player.price});
 
     //remove from roster
-    if (await playerAssigned(player.tag)) {
-      unassignPlayer(player.role, "");
+    if (await playerAssigned(player.id)) {
+      unassignPlayer(player.role, "none");
     } else {
       List<String> subs = [];
       for (var sub in (await roster).subs) {
-        String tag = (await sub).tag;
-        if (tag != player.tag) subs.add(tag);
+        String id = (await sub).id;
+        if (id != player.id) subs.add(id);
       }
       (await user).roster.updateData({"subs": subs});
     }
@@ -108,12 +154,12 @@ class UserData extends ChangeNotifier {
     if (isSub) {
       List<String> subs = [];
       for (var sub in (await roster).subs) {
-        subs.add((await sub).tag);
+        subs.add((await sub).id);
       }
-      subs.add(player.tag);
+      subs.add(player.id);
       u.roster.updateData({"subs": subs});
     } else {
-      assignPlayer(player, "");
+      assignPlayer(player, "none");
     }
 
     forceRosterUpdate();
@@ -131,25 +177,23 @@ class UserData extends ChangeNotifier {
     }
   }
 
-  Future<Timestamp> playerAssignedSince(String tag) async {
+  Future<Timestamp> playerAssignedSince(String id) async {
     Roster r = await roster;
-    if (tag == (await r.top).tag) return r.topAssigned;
-    if (tag == (await r.jungler).tag) return r.junglerAssigned;
-    if (tag == (await r.mid).tag) return r.midAssigned;
-    if (tag == (await r.bot).tag) return r.botAssigned;
-    if (tag == (await r.support).tag) return r.supportAssigned;
+
+    for (var role in roles) if (id == (await r.players[role].player).id) return r.players[role].assigned;
+
     return null;
   }
 
-  Future<bool> playerAssigned(String tag) async {
-    return await playerAssignedSince(tag) != null;
+  Future<bool> playerAssigned(String id) async {
+    return await playerAssignedSince(id) != null;
   }
 
-  Future<bool> playerOwned(String tag) async {
+  Future<bool> playerOwned(String id) async {
     Roster r = await roster;
-    if (await playerAssigned(tag)) return true;
+    if (await playerAssigned(id)) return true;
     for (var p in r.subs) {
-      if (tag == (await p).tag) return true;
+      if (id == (await p).id) return true;
     }
     return false;
   }

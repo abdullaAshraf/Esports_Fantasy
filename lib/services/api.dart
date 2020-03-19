@@ -37,7 +37,7 @@ class HttpService {
     return _allRecords;
   }
 
-  Future<Player> getPlayer(String tag, {bool forceRefresh = false}) async {
+  Future<Player> getPlayer(String id, {bool forceRefresh = false}) async {
     bool shouldRefreshFromApi = (null == _allRecords ||
         _allRecords.isEmpty ||
         null == _lastFetchTime ||
@@ -47,19 +47,18 @@ class HttpService {
     if (shouldRefreshFromApi) await refreshAllRecords();
 
     for (Player player in _allRecords) {
-      if (player.tag == tag) {
+      if (player.id == id) {
         return player;
       }
     }
-    return Future.value(Player.card("", 0.0, "", ""));
+    return Future.value(Player.empty());
   }
 
   Future<List<Player>> getPlayersAPI() async {
-    String url = baseUrl + '/Player/All';
+    String url = baseUrl + '/Players';
     Map<String, String> headers = {"Content-type": "application/json"};
     Response response = await get(url, headers: headers);
-    //int statusCode = response.statusCode;
-    //print("STATUS_CODE=" + statusCode.toString());
+
     if (response.statusCode == 200) {
       List<dynamic> players = jsonDecode(response.body);
       List<Player> playersMapped = players.map((data) => Player.fromJson(data)).toList();
@@ -82,19 +81,27 @@ class HttpService {
         gamePoints = 0;
       }
 
-      gamePoints += 2 * game.kills;
-      gamePoints -= 0.5 * game.deaths;
+      gamePoints += 3 * game.kills;
+      gamePoints -= 1 * game.deaths;
       gamePoints += 1.5 * game.assists;
-      gamePoints += 0.01 * game.cs;
+      gamePoints += 0.02 * game.cs;
 
-      if (game.kills + game.assists >= 10) gamePoints += 2;
-      if (game.win) gamePoints += 5;
+      if (game.kills + game.assists >= 10) gamePoints += 3;
+      if (game.win) {
+        if (game.length <= 20)
+          gamePoints += 5;
+        else if (game.length <= 30)
+          gamePoints += 3;
+        else
+          gamePoints += 2;
+      }
       totalPoints += gamePoints / gameCount;
     }
     return totalPoints;
   }
 
   Future<double> getPlayerPoints(Player player, Timestamp date) async {
+    if (player.id == "none") return 0;
     List<Game> games = await getGamesAPI(player.tournament, player.tag, date);
     double points = calculatePlayerPoints(games);
     return points;

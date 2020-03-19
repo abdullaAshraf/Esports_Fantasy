@@ -88,7 +88,7 @@ class _RegistrationState extends State<Registration> {
                         if (!registered) {
                           final roster = await _firestore
                               .collection('rosters')
-                              .add(emptyRoster);
+                              .add(await Roster.empty().getData());
                           await _firestore.collection('users').add({
                             'balance': 10000,
                             'id': newUser.user.uid,

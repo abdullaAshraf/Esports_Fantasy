@@ -218,7 +218,7 @@ class _PlayerDetailsState extends State<PlayerDetails> {
                       height: 75,
                       margin: EdgeInsets.fromLTRB(10, 0, 5, 10),
                       child: FutureBuilder<bool>(
-                        future: data.playerAssigned(widget.player.tag),
+                        future: data.playerAssigned(widget.player.id),
                         builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
                           return FlatButton(
                             child: Text(
@@ -245,7 +245,7 @@ class _PlayerDetailsState extends State<PlayerDetails> {
                       height: 75,
                       margin: EdgeInsets.fromLTRB(5, 0, 10, 10),
                       child: FutureBuilder<bool>(
-                        future: data.playerOwned(widget.player.tag),
+                        future: data.playerOwned(widget.player.id),
                         builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
                           return FlatButton(
                             child: Text(
@@ -277,7 +277,7 @@ class _PlayerDetailsState extends State<PlayerDetails> {
   }
 
   void unassign(UserData data, BuildContext context) async {
-    Timestamp assignedSince = await data.playerAssignedSince(widget.player.tag);
+    Timestamp assignedSince = await data.playerAssignedSince(widget.player.id);
     if (await httpService.unassignable(widget.player.tournament, widget.player.team, assignedSince)) {
       if ((await data.roster).subs.length >= MaxSubs) {
         final snackBar = SnackBar(
@@ -292,7 +292,7 @@ class _PlayerDetailsState extends State<PlayerDetails> {
         Scaffold.of(context).showSnackBar(snackBar);
         return;
       } else {
-        data.unassignPlayer(widget.player.role, widget.player.tag);
+        data.unassignPlayer(widget.player.role, widget.player.id);
       }
     } else {
       final snackBar = SnackBar(content: Text('This player can\'t be unassinged yet'));
@@ -302,28 +302,23 @@ class _PlayerDetailsState extends State<PlayerDetails> {
 
   void assign(UserData data, BuildContext context) async {
     String role = widget.player.role;
-    Player assignedPlayer;
-    if (role == 'top') assignedPlayer = await (await data.roster).top;
-    if (role == 'jungler') assignedPlayer = await (await data.roster).jungler;
-    if (role == 'mid') assignedPlayer = await (await data.roster).mid;
-    if (role == 'bot') assignedPlayer = await (await data.roster).bot;
-    if (role == 'support') assignedPlayer = await (await data.roster).support;
+    Player assignedPlayer = await (await data.roster).players[role].player;
 
-    if (assignedPlayer.tag == "" ||
-        (await httpService.unassignable(assignedPlayer.tournament, assignedPlayer.team, await data.playerAssignedSince(assignedPlayer.tag)))) {
-      if (await data.playerOwned(widget.player.tag)) {
+    if (assignedPlayer.id == "none" ||
+        (await httpService.unassignable(assignedPlayer.tournament, assignedPlayer.team, await data.playerAssignedSince(assignedPlayer.id)))) {
+      if (await data.playerOwned(widget.player.id)) {
         final snackBar = SnackBar(
           content: Text('Are you sure you want to assign this player?'),
           action: SnackBarAction(
             label: 'Assign',
             onPressed: () {
-              data.assignPlayer(widget.player, assignedPlayer.tag);
+              data.assignPlayer(widget.player, assignedPlayer.id);
             },
           ),
         );
         Scaffold.of(context).showSnackBar(snackBar);
       } else {
-        if (assignedPlayer.tag != "") {
+        if (assignedPlayer.id != "none") {
           final snackBar = SnackBar(content: Text('Bench or sell the player in this role first to free a spot'));
           Scaffold.of(context).showSnackBar(snackBar);
         } else {
@@ -369,10 +364,10 @@ class _PlayerDetailsState extends State<PlayerDetails> {
   }
 
   void sell(UserData data, BuildContext context) async {
-    if (!(await data.playerAssigned(widget.player.tag)) ||
-        (await httpService.unassignable(widget.player.tournament, widget.player.team, await data.playerAssignedSince(widget.player.tag)))) {
+    if (!(await data.playerAssigned(widget.player.id)) ||
+        (await httpService.unassignable(widget.player.tournament, widget.player.team, await data.playerAssignedSince(widget.player.id)))) {
       data.sellPlayer(widget.player);
-    }else{
+    } else {
       final snackBar = SnackBar(content: Text('This player can\'t be unassinged yet'));
       Scaffold.of(context).showSnackBar(snackBar);
     }

@@ -56,7 +56,7 @@ class _LeaderboardState extends State<Leaderboard> {
             int rank = 1;
             for (var user in users) {
               final username = user.data['username'];
-              final points = user.data['points'];
+              final points = user.data['points'].toDouble();
               Color colour = Color(0xFF1D1E33);
               if (loggedInUser != null && loggedInUser.uid == user.data['id'])
                 colour = Color(0xFF5D4721);
@@ -90,7 +90,7 @@ class UserCard extends StatelessWidget {
 
   final Color colour;
   final String username;
-  final int points;
+  final double points;
   final int rank;
 
   @override
@@ -114,7 +114,7 @@ class UserCard extends StatelessWidget {
             style: TextStyle(fontSize: 28, color: Color(0xFFFFFFFF)),
           ),
           Text(
-            points.toString(),
+            points.round().toString(),
             style: TextStyle(fontSize: 32, color: Color(0xFF8E8E9B)),
           )
         ],

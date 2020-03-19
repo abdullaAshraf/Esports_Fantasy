@@ -1,6 +1,7 @@
 import 'package:html_unescape/html_unescape.dart';
 
 class Player {
+  String id;
   String name;
   String tag;
   String image;
@@ -18,7 +19,16 @@ class Player {
       : tag = tag,
         points = points,
         role = role,
-        team = team;
+        team = team {
+    id = tag + '(' + name + ')';
+  }
+
+  Player.empty()
+      : tag = "",
+        points = 0.0,
+        role = "",
+        team = "",
+        id = "none";
 
   Player.fromJson(Map<String, dynamic> json)
       : name = new HtmlUnescape().convert(json['Name']).replaceAll("&nbsp;", " "),
@@ -30,9 +40,11 @@ class Player {
         role = json['Role'].toLowerCase(),
         tournament = json['Tournament'],
         points = 0,
-        price = 0;
+        price = 0 {
+    id = tag + '(' + name + ')';
+  }
 
-  void updatePrice() async{
+  void updatePrice() async {
     //TODO update price
   }
 }

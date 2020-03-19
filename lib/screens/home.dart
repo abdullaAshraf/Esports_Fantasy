@@ -16,14 +16,6 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  Roster premadeRoster = new Roster.full(
-      Player.card("Huni", 310.18, "top", "CLG"),
-      Player.card("Tarzan", 344.15, "jungler", "Griffin"),
-      Player.card("Chovy", 332.50, "mid", "Griffin"),
-      Player.card("Viper", 395.60, "bot", "Griffin"),
-      Player.card("Mata", 76.17, "support", "SKT1"),
-      [Player.card("Canyon", 351.55, "jungler", "DAMWON Gaming"), Player.card("Faker", 314.01, "mid", "SKT1")]);
-
   final _auth = FirebaseAuth.instance;
   HttpService httpService = new HttpService();
 
@@ -55,11 +47,11 @@ class _HomeState extends State<Home> {
             return Center(
               child: Column(
                 children: <Widget>[
-                  FutureRosterCard(player: snapshot.hasData ? snapshot.data.top : null),
-                  FutureRosterCard(player: snapshot.hasData ? snapshot.data.jungler : null),
-                  FutureRosterCard(player: snapshot.hasData ? snapshot.data.mid : null),
-                  FutureRosterCard(player: snapshot.hasData ? snapshot.data.bot : null),
-                  FutureRosterCard(player: snapshot.hasData ? snapshot.data.support : null),
+                  FutureRosterCard(player: snapshot.hasData ? snapshot.data.players['top'].player : null),
+                  FutureRosterCard(player: snapshot.hasData ? snapshot.data.players['jungler'].player: null),
+                  FutureRosterCard(player: snapshot.hasData ? snapshot.data.players['mid'].player :null),
+                  FutureRosterCard(player: snapshot.hasData ? snapshot.data.players['bot'].player : null),
+                  FutureRosterCard(player: snapshot.hasData ? snapshot.data.players['support'].player : null),
                   SizedBox(
                     height: 20,
                   ),
@@ -91,7 +83,7 @@ class FutureRosterCard extends StatelessWidget {
       future: player,
       builder: (BuildContext context, AsyncSnapshot<Player> snapshot) {
         if (snapshot.hasData) {
-          if (snapshot.data.tag == "") {
+          if (snapshot.data.id == "none") {
             return FractionallySizedBox(
               widthFactor: 1,
               child: Container(
