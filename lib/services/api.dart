@@ -15,13 +15,14 @@ class HttpService {
   static const int UnassignableAfterDays = 30;
 
   HttpService() {
-    _cacheValidDuration = Duration(minutes: 30);
+    _cacheValidDuration = Duration(minutes: 60);
     _lastFetchTime = DateTime.fromMillisecondsSinceEpoch(0);
     _allRecords = [];
   }
 
   Future<void> refreshAllRecords() async {
-    _allRecords = await getPlayersAPI(); // This makes the actual HTTP request
+    // This makes the actual HTTP request
+    _allRecords = await getPlayersAPI();
     _lastFetchTime = DateTime.now();
   }
 
@@ -102,14 +103,16 @@ class HttpService {
 
   Future<double> getPlayerPoints(Player player, Timestamp date) async {
     if (player.id == "none") return 0;
-    List<Game> games = await getGamesAPI(player.tournament, player.tag, date);
+    String playerLink = player.tag + " (" + player.originalName + ")";
+    List<Game> games = await getGamesAPI(player.tournament, playerLink, date);
     double points = calculatePlayerPoints(games);
     return points;
   }
 
   Future<double> getPlayerSeasonPoints(Player player) async {
     var date = Timestamp.fromMillisecondsSinceEpoch(0);
-    List<Game> games = await getGamesAPI(player.tournament, player.tag, date);
+    String playerLink = player.tag + " (" + player.originalName + ")";
+    List<Game> games = await getGamesAPI(player.tournament, playerLink, date);
     double points = calculatePlayerPoints(games);
     return points;
   }

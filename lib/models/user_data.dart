@@ -1,3 +1,4 @@
+import 'package:esports_fantasy/models/playerAttachment.dart';
 import 'package:flutter/foundation.dart';
 import './user.dart';
 import './roster.dart';
@@ -9,6 +10,8 @@ class UserData extends ChangeNotifier {
   FirebaseUser _loggedInUser;
   User _user;
   Roster _roster;
+  int _maxOwned;
+  double _maxPoints;
   final _auth = FirebaseAuth.instance;
   final _firestore = Firestore.instance;
 
@@ -29,6 +32,7 @@ class UserData extends ChangeNotifier {
 
   void updateRosterPoints() async {
     var r = await roster;
+
     try {
       List responses = await Future.wait([
         updatePlayerPoints(r.players['top']),
@@ -45,7 +49,7 @@ class UserData extends ChangeNotifier {
             (await _firestore.collection("users").where('id', isEqualTo: (await loggedInUser).uid).getDocuments()).documents.first.reference;
         userRef.updateData({'points': (await user).points + sum});
 
-        (await user).roster.updateData(await r.getData());
+        await (await user).roster.updateData(await r.getData());
         (await user).points += sum;
       }
     } catch (e) {
@@ -62,7 +66,8 @@ class UserData extends ChangeNotifier {
     //check for server updates
     double assignedPoints = await httpService.getPlayerPoints(p, rosterPlayer.assigned);
     int gamesCount = await httpService.getTeamMatchCountAPI(p.tournament, p.team, rosterPlayer.assigned);
-    p.points = assignedPoints / (gamesCount == 0 ? 1 : gamesCount);
+
+    p.attachment = PlayerAttachment(rosterPlayer.assigned, assignedPoints, gamesCount);
     rosterPlayer.player = Future.value(p);
 
     double diff = assignedPoints - rosterPlayer.pointsGained;
@@ -70,15 +75,60 @@ class UserData extends ChangeNotifier {
     return diff;
   }
 
-  Future<Roster> get roster async {
-    if (_roster != null)
-      return _roster;
-    else {
-      User u = await user;
-      _roster = Roster.data(await u.roster.get());
-      updateRosterPoints();
-      return _roster;
+  Future<bool> updatePlayerPrice(Player player) async {
+    if (player.price != 0) return false;
+    var data = await _firestore.collection("players").document(player.id).get();
+    if (data.exists) {
+      player.points = data.data['points'].toDouble() / data.data['games'].toDouble();
+      player.price = calculatePlayerPrice(player.points, data.data['owned'], await maxPoints, await maxOwned);
+      return true;
+    } else {
+      player.points = 0;
+      player.price = calculatePlayerPrice(player.points, 0, await maxPoints, await maxOwned);
+      return false;
     }
+  }
+
+  int calculatePlayerPrice(double points, int owned, double maxPoints, int maxOwned) {
+    double price = 1000;
+    price += (owned / maxOwned) * 1000;
+    price += (points / maxPoints) * 1000;
+    return price.round();
+  }
+
+  Future<int> get maxOwned async {
+    if (_maxOwned == null) {
+      var data = await _firestore.collection("global").document("lastPlayersUpdate").get();
+      _maxOwned = data.data["maxOwned"];
+      _maxPoints = data.data["maxPoints"];
+    }
+    return _maxOwned;
+  }
+
+  Future<double> get maxPoints async {
+    if (_maxOwned == null) {
+      var data = await _firestore.collection("global").document("lastPlayersUpdate").get();
+      _maxOwned = data.data["maxOwned"];
+      _maxPoints = data.data["maxPoints"];
+    }
+    return _maxPoints;
+  }
+
+  Future<Roster> get roster async {
+    if (_roster == null) {
+      User u = await user;
+      _roster = await Roster.data(await u.roster.get());
+      updateRosterPoints();
+    }
+    return _roster;
+  }
+
+  Future<User> get user async {
+    if (_user == null) {
+      final data = await _firestore.collection("users").where('id', isEqualTo: (await loggedInUser).uid).getDocuments();
+      _user = User.fromJson(data.documents.first.data);
+    }
+    return _user;
   }
 
   void forceRosterUpdate() {
@@ -89,6 +139,12 @@ class UserData extends ChangeNotifier {
   void forceUserUpdate() {
     _user = null;
     notifyListeners();
+  }
+
+  void editUsername(String name) async {
+    final userRef = (await _firestore.collection("users").where('id', isEqualTo: (await loggedInUser).uid).getDocuments()).documents.first.reference;
+    userRef.updateData({'username': name});
+    forceUserUpdate();
   }
 
   void unassignPlayer(String role, String benchedPlayerId) async {
@@ -122,9 +178,13 @@ class UserData extends ChangeNotifier {
   }
 
   void sellPlayer(Player player) async {
-    await player.updatePrice();
+    player.price = 0;
+    await updatePlayerPrice(player);
     final userRef = (await _firestore.collection("users").where('id', isEqualTo: (await loggedInUser).uid).getDocuments()).documents.first.reference;
     userRef.updateData({'balance': (await user).balance + player.price});
+
+    var owned = (await _firestore.collection("players").document(player.id).get()).data['owned'];
+    await _firestore.collection("players").document(player.id).updateData({'owned': owned - 1});
 
     //remove from roster
     if (await playerAssigned(player.id)) {
@@ -137,18 +197,26 @@ class UserData extends ChangeNotifier {
       }
       (await user).roster.updateData({"subs": subs});
     }
+
     forceRosterUpdate();
     forceUserUpdate();
   }
 
   Future<bool> buyPlayer(Player player, bool isSub) async {
-    await player.updatePrice();
+    player.price = 0;
+    await updatePlayerPrice(player);
 
     User u = await user;
     if (u.balance < player.price) return false;
 
     final userRef = (await _firestore.collection("users").where('id', isEqualTo: (await loggedInUser).uid).getDocuments()).documents.first.reference;
     userRef.updateData({'balance': u.balance - player.price});
+
+    var owned = (await _firestore.collection("players").document(player.id).get()).data['owned'];
+    await _firestore.collection("players").document(player.id).updateData({'owned': owned + 1});
+    if (owned + 1 > await maxOwned) {
+      _firestore.collection("global").document('lastPlayersUpdate').updateData({'maxOwned': owned + 1});
+    }
 
     //add to roster
     if (isSub) {
@@ -165,16 +233,6 @@ class UserData extends ChangeNotifier {
     forceRosterUpdate();
     forceUserUpdate();
     return true;
-  }
-
-  Future<User> get user async {
-    if (_user != null)
-      return _user;
-    else {
-      final data = await _firestore.collection("users").where('id', isEqualTo: (await loggedInUser).uid).getDocuments();
-      _user = User.fromJson(data.documents.first.data);
-      return _user;
-    }
   }
 
   Future<Timestamp> playerAssignedSince(String id) async {

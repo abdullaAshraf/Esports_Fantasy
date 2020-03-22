@@ -6,6 +6,8 @@ import '../services/api.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import './player_details.dart';
 import '../widgets/bottom_navigattion.dart';
+import 'package:provider/provider.dart';
+import '../models/user_data.dart';
 
 class Market extends StatefulWidget {
   @override
@@ -15,13 +17,10 @@ class Market extends StatefulWidget {
 class _MarketState extends State<Market> {
   Future<List<Player>> players;
   String searchTag = "";
-  var searchRoles = {
-    'top': true,
-    'jungler': true,
-    'mid': true,
-    'bot': true,
-    'support': true
-  };
+  var searchRoles = {'top': true, 'jungler': true, 'mid': true, 'bot': true, 'support': true};
+  int sortPrice = 0;
+  int sortPoints = 0;
+  int sortName = 0;
   HttpService httpService = new HttpService();
 
   @override
@@ -50,8 +49,7 @@ class _MarketState extends State<Market> {
               ),
               Expanded(
                 child: TextField(
-                  decoration: InputDecoration(
-                      border: InputBorder.none, hintText: 'Search by tag'),
+                  decoration: InputDecoration(border: InputBorder.none, hintText: 'Search by tag'),
                   onChanged: (text) {
                     setState(() {
                       searchTag = text;
@@ -98,14 +96,31 @@ class _MarketState extends State<Market> {
             child: FutureBuilder<List<Player>>(
               future: players,
               builder: (context, snapshot) {
+                if (sortPrice == 1)
+                  snapshot.data.sort((a, b) => a.price.compareTo(b.price));
+                else if (sortPrice == 2)
+                  snapshot.data.sort((a, b) => b.price.compareTo(a.price));
+                else if (sortPoints == 1)
+                  snapshot.data.sort((a, b) => a.points.compareTo(b.points));
+                else if (sortPoints == 2)
+                  snapshot.data.sort((a, b) => b.points.compareTo(a.points));
+                else if (sortName == 1)
+                  snapshot.data.sort((a, b) => a.tag.compareTo(b.tag));
+                else if (sortName == 2) snapshot.data.sort((a, b) => b.tag.compareTo(a.tag));
                 if (snapshot.hasData) {
                   return ListView.builder(
                     itemCount: snapshot.data.length,
                     itemBuilder: (context, index) {
                       Player player = snapshot.data[index];
-                      return player.tag.toLowerCase().contains(searchTag.toLowerCase()) &&
-                              searchRoles[player.role]
-                          ? MarketCard(player: player)
+                      return player.tag.toLowerCase().contains(searchTag.toLowerCase()) && searchRoles[player.role]
+                          ? FutureBuilder<bool>(
+                              future: Provider.of<UserData>(context, listen: false).updatePlayerPrice(player),
+                              builder: (context, snapshot) {
+                                return MarketCard(
+                                  player: player,
+                                  ready: snapshot.hasData,
+                                );
+                              })
                           : new Container();
                     },
                   );
@@ -115,8 +130,7 @@ class _MarketState extends State<Market> {
                 // By default, show a loading spinner.
                 return Center(
                   child: CircularProgressIndicator(
-                    valueColor:
-                        new AlwaysStoppedAnimation<Color>(Color(0xFFC8AA6D)),
+                    valueColor: new AlwaysStoppedAnimation<Color>(Color(0xFFC8AA6D)),
                   ),
                 );
               },
@@ -138,8 +152,7 @@ class _MarketState extends State<Market> {
 }
 
 class RoleFilter extends StatelessWidget {
-  RoleFilter(
-      {@required this.active, @required this.role, @required this.onClick});
+  RoleFilter({@required this.active, @required this.role, @required this.onClick});
 
   final bool active;
   final String role;
@@ -159,20 +172,23 @@ class RoleFilter extends StatelessWidget {
 }
 
 class MarketCard extends StatelessWidget {
-  MarketCard({@required this.player});
+  MarketCard({@required this.player, @required this.ready});
 
   final Player player;
+  final bool ready;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PlayerDetails(player: player),
-          ),
-        );
+        if (ready) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PlayerDetails(player: player),
+            ),
+          );
+        }
       },
       child: Container(
         margin: EdgeInsets.fromLTRB(15, 10, 15, 0),
@@ -194,19 +210,17 @@ class MarketCard extends StatelessWidget {
                   width: 10,
                 ),
                 Container(
-                  width: 260,
+                  width: 200,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
                         player.tag,
-                        style:
-                            TextStyle(fontSize: 32, color: Color(0xFFFFFFFF)),
+                        style: TextStyle(fontSize: 32, color: Color(0xFFFFFFFF)),
                       ),
                       Text(
                         player.team,
-                        style:
-                            TextStyle(fontSize: 16, color: Color(0xFF8E8E9B)),
+                        style: TextStyle(fontSize: 16, color: Color(0xFF8E8E9B)),
                         softWrap: false,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -215,19 +229,25 @@ class MarketCard extends StatelessWidget {
                 ),
               ],
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                Text(
-                  player.price.toString() + "\$",
-                  style: TextStyle(fontSize: 32, color: Color(0xFFFFFFFF)),
-                ),
-                Text(
-                  player.points.round().toString(),
-                  style: TextStyle(fontSize: 16, color: Color(0xFF8E8E9B)),
-                ),
-              ],
-            ),
+            (ready
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: <Widget>[
+                      Text(
+                        player.points.toStringAsFixed(1),
+                        style: TextStyle(fontSize: 32, color: Color(0xFFFFFFFF)),
+                      ),
+                      Text(
+                        player.price.toString() + "\$",
+                        style: TextStyle(fontSize: 16, color: Color(0xFF8E8E9B)),
+                      ),
+                    ],
+                  )
+                : Center(
+                    child: CircularProgressIndicator(
+                      valueColor: new AlwaysStoppedAnimation<Color>(Color(0xFFC8AA6D)),
+                    ),
+                  )),
           ],
         ),
       ),

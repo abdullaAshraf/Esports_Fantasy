@@ -19,7 +19,12 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
       elevation: 10,
       title: Text(title),
       actions: <Widget>[
-        // action button
+        IconButton(
+          icon: Icon(FontAwesomeIcons.syncAlt),
+          onPressed: () async {
+            await Provider.of<UserData>(context, listen: false).updateRosterPoints();
+          },
+        ),
         IconButton(
           icon: Icon(FontAwesomeIcons.signOutAlt),
           onPressed: () async {

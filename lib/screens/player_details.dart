@@ -7,6 +7,7 @@ import '../models/player.dart';
 import 'package:provider/provider.dart';
 import '../models/user_data.dart';
 import '../services/api.dart';
+import 'package:intl/intl.dart';
 
 const int MaxSubs = 2;
 
@@ -206,6 +207,32 @@ class _PlayerDetailsState extends State<PlayerDetails> {
                 ),
               ],
             ),
+            widget.player.attachment == null
+                ? Container()
+                : Container(
+                    color: Color(0xFF1D1E33),
+                    padding: EdgeInsets.all(10),
+                    margin: EdgeInsets.fromLTRB(10, 0, 10, 10),
+                    child: Row(
+                      children: <Widget>[
+                        Icon(
+                          FontAwesomeIcons.info,
+                          size: 50,
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text("Assigned Since: " + new DateFormat('yyyy-MM-dd HH:MM').format(widget.player.attachment.assigned.toDate().toUtc()),
+                                style: TextStyle(fontSize: 20, color: Color(0xFFFFFFFF))),
+                            Text("Games Played: " + widget.player.attachment.games.toString(),
+                                style: TextStyle(fontSize: 20, color: Color(0xFFFFFFFF))),
+                            Text("Points Gained: " + widget.player.attachment.points.toStringAsFixed(1),
+                                style: TextStyle(fontSize: 20, color: Color(0xFFFFFFFF))),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
             Expanded(
               child: Container(),
             ),
@@ -215,7 +242,7 @@ class _PlayerDetailsState extends State<PlayerDetails> {
                   Expanded(
                     child: Container(
                       color: Color(0xFFC8AA6D),
-                      height: 75,
+                      height: 70,
                       margin: EdgeInsets.fromLTRB(10, 0, 5, 10),
                       child: FutureBuilder<bool>(
                         future: data.playerAssigned(widget.player.id),
@@ -242,7 +269,7 @@ class _PlayerDetailsState extends State<PlayerDetails> {
                   Expanded(
                     child: Container(
                       color: Color(0xFFC8AA6D),
-                      height: 75,
+                      height: 70,
                       margin: EdgeInsets.fromLTRB(5, 0, 10, 10),
                       child: FutureBuilder<bool>(
                         future: data.playerOwned(widget.player.id),
